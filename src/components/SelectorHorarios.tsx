@@ -30,8 +30,14 @@ function celdasDelMes(anio: number, mes: number): (Date | null)[] {
 
 export default function SelectorHorarios() {
   const hoy = useMemo(() => new Date(), []);
+  // Sin hora: para comparar "es un día pasado" contra fechas que vienen a
+  // las 00:00 (las de la grilla) sin que la hora actual meta ruido.
+  const inicioDeHoy = useMemo(() => new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate()), [hoy]);
   const [mesVisible, setMesVisible] = useState(() => new Date(hoy.getFullYear(), hoy.getMonth(), 1));
-  const [diaSeleccionado, setDiaSeleccionado] = useState<Date | null>(null);
+  // Arranca en hoy: así se ven los horarios del día apenas se entra, sin
+  // tener que tocar el calendario primero (si hoy no tiene clase, el
+  // mensaje de "ese día no hay clases" ya lo explica solo).
+  const [diaSeleccionado, setDiaSeleccionado] = useState<Date | null>(hoy);
 
   const [grilla, setGrilla] = useState<DiaConHorarios[]>([]);
   // Arranca en true (todavía no llegó la primera respuesta). Al cambiar de
@@ -79,7 +85,7 @@ export default function SelectorHorarios() {
   }
 
   return (
-    <section id="horarios" className="scroll-mt-20 px-4 py-10">
+    <section id="horarios" className="seccion-pantalla px-4">
       <h2 className="font-titulo text-2xl uppercase text-marca-negro">Horarios de este mes</h2>
       <p className="mt-1 text-sm text-zinc-500">
         Horarios de muestra para ver el diseño — todavía no están conectados a la agenda real de Yani.
@@ -131,6 +137,11 @@ export default function SelectorHorarios() {
             if (!fecha) return <span key={`vacio-${indice}`} />;
 
             const tieneClase = diasConClase.has(fecha.toDateString());
+            // Un día pasado no se puede reservar aunque haya tenido clase
+            // cargada: se ve apagado igual que un día sin clase, en vez de
+            // quedar clickeable como si todavía se pudiera anotar.
+            const esPasado = fecha < inicioDeHoy;
+            const disponible = tieneClase && !esPasado;
             const esSeleccionado = diaSeleccionado ? mismaFecha(fecha, diaSeleccionado) : false;
             const esHoy = mismaFecha(fecha, hoy);
 
@@ -138,12 +149,12 @@ export default function SelectorHorarios() {
               <button
                 key={fecha.toDateString()}
                 type="button"
-                disabled={!tieneClase}
+                disabled={!disponible}
                 onClick={() => setDiaSeleccionado(fecha)}
                 className={[
                   "mx-auto flex h-11 w-11 items-center justify-center rounded-full text-sm",
-                  !tieneClase && "text-zinc-300",
-                  tieneClase && !esSeleccionado && "font-medium text-marca-negro active:bg-marca-rosa/20",
+                  !disponible && "text-zinc-300",
+                  disponible && !esSeleccionado && "font-medium text-marca-negro active:bg-marca-rosa/20",
                   esSeleccionado && "bg-marca-rosa font-semibold text-marca-negro",
                   esHoy && !esSeleccionado && "ring-1 ring-marca-rosa",
                 ]
