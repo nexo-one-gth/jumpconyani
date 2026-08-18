@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { createPortal } from "react-dom";
 import { SECCIONES } from "@/lib/secciones";
 
 /** Aire entre el header sticky y el título de la sección a la que saltamos. */
@@ -79,18 +80,34 @@ function desplazarSuave(destino: number, alTerminar: () => void): () => void {
   return limpiar;
 }
 
+/** El estado de hidratación no cambia nunca después del primer render. */
+function sinSuscripcion() {
+  return () => {};
+}
+const enCliente = () => true;
+const enServidor = () => false;
+
 /**
- * Menú de secciones retráctil, fijo al costado izquierdo: cerrado es solo un
- * botón de tres barritas; abierto despliega la lista completa con la sección
- * que se está viendo marcada.
+ * Menú de secciones que vive en la barra superior, a la izquierda del logo:
+ * cerrado es solo un botón de tres barritas; abierto cuelga la lista completa
+ * debajo del header, con la sección que se está viendo marcada.
  *
- * Antes esto era un rail de puntos siempre visible, pero el sitio es
- * mobile-first y el contenido llega hasta el borde: cualquier cosa que quede
- * fija ahí termina tapando texto. Plegado, el botón ocupa 44px y nada más.
+ * Antes esto era un rail de puntos siempre visible y después un botón flotante
+ * al costado, pero el sitio es mobile-first y el contenido llega hasta el
+ * borde: cualquier cosa que quede fija encima termina tapando texto. En el
+ * header no tapa nada y es el lugar donde se busca un menú.
  */
 export default function MenuSecciones() {
   const [abierto, setAbierto] = useState(false);
   const [activa, setActiva] = useState(SECCIONES[0]?.id ?? "");
+  // El fondo va por portal a <body> y no acá adentro: el header tiene
+  // `backdrop-blur`, y un elemento con backdrop-filter pasa a ser el bloque
+  // contenedor de sus descendientes `fixed`. Sin el portal, el fondo quedaría
+  // recortado al alto de la barra en vez de cubrir la pantalla.
+  //
+  // `createPortal` necesita el `document`, que en el render del servidor no
+  // existe: esperamos a estar hidratados para montarlo.
+  const hidratado = useSyncExternalStore(sinSuscripcion, enCliente, enServidor);
   const botonRef = useRef<HTMLButtonElement>(null);
   const cancelarRef = useRef<(() => void) | null>(null);
   // Mientras viajamos, el observador ve pasar todas las secciones del camino.
@@ -166,87 +183,86 @@ export default function MenuSecciones() {
   }, []);
 
   return (
-    <>
-      <div
-        aria-hidden="true"
-        onClick={() => setAbierto(false)}
-        className={`fixed inset-0 z-40 bg-marca-negro/10 transition-opacity duration-200 ${
-          abierto ? "opacity-100" : "pointer-events-none opacity-0"
-        }`}
-      />
+    <nav aria-label="Secciones de la página" className="relative shrink-0">
+      {hidratado &&
+        createPortal(
+          <div
+            aria-hidden="true"
+            onClick={() => setAbierto(false)}
+            className={`fixed inset-0 z-30 bg-marca-negro/10 transition-opacity duration-200 ${
+              abierto ? "opacity-100" : "pointer-events-none opacity-0"
+            }`}
+          />,
+          document.body
+        )}
 
-      <nav
-        aria-label="Secciones de la página"
-        className="pointer-events-none fixed left-3 top-1/2 z-50 flex -translate-y-1/2 items-center gap-2"
+      <button
+        ref={botonRef}
+        type="button"
+        onClick={() => setAbierto((estaba) => !estaba)}
+        aria-expanded={abierto}
+        aria-controls="menu-secciones"
+        aria-label={abierto ? "Cerrar menú de secciones" : "Abrir menú de secciones"}
+        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-black/10 transition-colors active:bg-marca-rosa/20 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-marca-rojo"
       >
-        <button
-          ref={botonRef}
-          type="button"
-          onClick={() => setAbierto((estaba) => !estaba)}
-          aria-expanded={abierto}
-          aria-controls="menu-secciones"
-          aria-label={abierto ? "Cerrar menú de secciones" : "Abrir menú de secciones"}
-          className="pointer-events-auto flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-black/5 bg-white shadow-md transition-transform active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-marca-rojo"
-        >
-          <span aria-hidden="true" className="relative block h-3.5 w-5">
-            <span
-              className={`absolute left-0 h-0.5 w-full rounded-full bg-marca-negro transition-all duration-200 ${
-                abierto ? "top-1/2 -translate-y-1/2 rotate-45" : "top-0"
-              }`}
-            />
-            <span
-              className={`absolute left-0 top-1/2 h-0.5 w-full -translate-y-1/2 rounded-full bg-marca-negro transition-opacity duration-200 ${
-                abierto ? "opacity-0" : "opacity-100"
-              }`}
-            />
-            <span
-              className={`absolute left-0 h-0.5 w-full rounded-full bg-marca-negro transition-all duration-200 ${
-                abierto ? "top-1/2 -translate-y-1/2 -rotate-45" : "bottom-0"
-              }`}
-            />
-          </span>
-        </button>
+        <span aria-hidden="true" className="relative block h-3.5 w-5">
+          <span
+            className={`absolute left-0 h-0.5 w-full rounded-full bg-marca-negro transition-all duration-200 ${
+              abierto ? "top-1/2 -translate-y-1/2 rotate-45" : "top-0"
+            }`}
+          />
+          <span
+            className={`absolute left-0 top-1/2 h-0.5 w-full -translate-y-1/2 rounded-full bg-marca-negro transition-opacity duration-200 ${
+              abierto ? "opacity-0" : "opacity-100"
+            }`}
+          />
+          <span
+            className={`absolute left-0 h-0.5 w-full rounded-full bg-marca-negro transition-all duration-200 ${
+              abierto ? "top-1/2 -translate-y-1/2 -rotate-45" : "bottom-0"
+            }`}
+          />
+        </span>
+      </button>
 
-        <ul
-          id="menu-secciones"
-          aria-hidden={!abierto}
-          className={`flex origin-left flex-col gap-0.5 rounded-2xl border border-black/5 bg-white/95 p-1.5 shadow-lg backdrop-blur transition duration-200 ${
-            abierto
-              ? "pointer-events-auto translate-x-0 scale-100 opacity-100"
-              : "pointer-events-none -translate-x-3 scale-95 opacity-0"
-          }`}
-        >
-          {SECCIONES.map((seccion) => {
-            const esActiva = seccion.id === activa;
+      <ul
+        id="menu-secciones"
+        aria-hidden={!abierto}
+        className={`absolute left-0 top-full z-50 mt-2 flex w-max origin-top-left flex-col gap-0.5 rounded-2xl border border-black/5 bg-white/95 p-1.5 shadow-lg backdrop-blur transition duration-200 ${
+          abierto
+            ? "pointer-events-auto translate-y-0 scale-100 opacity-100"
+            : "pointer-events-none -translate-y-2 scale-95 opacity-0"
+        }`}
+      >
+        {SECCIONES.map((seccion) => {
+          const esActiva = seccion.id === activa;
 
-            return (
-              <li key={seccion.id}>
-                <a
-                  href={`#${seccion.id}`}
-                  tabIndex={abierto ? undefined : -1}
-                  aria-current={esActiva ? "true" : undefined}
-                  onClick={(evento) => {
-                    evento.preventDefault();
-                    irA(seccion.id);
-                  }}
-                  className={`flex items-center gap-2 rounded-xl py-2 pl-2 pr-4 text-xs font-semibold uppercase tracking-wide transition-colors focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-marca-rojo ${
-                    esActiva
-                      ? "bg-marca-rosa/30 text-marca-rojo"
-                      : "text-marca-negro hover:bg-marca-rosa/10"
+          return (
+            <li key={seccion.id}>
+              <a
+                href={`#${seccion.id}`}
+                tabIndex={abierto ? undefined : -1}
+                aria-current={esActiva ? "true" : undefined}
+                onClick={(evento) => {
+                  evento.preventDefault();
+                  irA(seccion.id);
+                }}
+                className={`flex items-center gap-2 rounded-xl py-2 pl-2 pr-4 text-xs font-semibold uppercase tracking-wide transition-colors focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-marca-rojo ${
+                  esActiva
+                    ? "bg-marca-rosa/30 text-marca-rojo"
+                    : "text-marca-negro hover:bg-marca-rosa/10"
+                }`}
+              >
+                <span
+                  className={`h-1.5 w-1.5 shrink-0 rounded-full transition-colors ${
+                    esActiva ? "bg-marca-rojo" : "bg-zinc-300"
                   }`}
-                >
-                  <span
-                    className={`h-1.5 w-1.5 shrink-0 rounded-full transition-colors ${
-                      esActiva ? "bg-marca-rojo" : "bg-zinc-300"
-                    }`}
-                  />
-                  {seccion.rotulo}
-                </a>
-              </li>
-            );
-          })}
-        </ul>
-      </nav>
-    </>
+                />
+                {seccion.rotulo}
+              </a>
+            </li>
+          );
+        })}
+      </ul>
+    </nav>
   );
 }

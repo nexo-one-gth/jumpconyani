@@ -1,14 +1,22 @@
+import type { ReactNode } from "react";
 import Image from "next/image";
 import IconoWhatsapp from "./IconoWhatsapp";
 import RayasDiagonales from "./RayasDiagonales";
 import { NOMBRE_MARCA, linkWhatsapp } from "@/lib/contacto";
 
-export default function Header() {
+/**
+ * Barra superior fija. El slot `menu` es para el menú de secciones: entra a la
+ * izquierda del logo, antes que la marca. Va por prop y no importado acá
+ * porque las secciones existen solo en la home — la ficha de un evento usa el
+ * mismo header sin menú.
+ */
+export default function Header({ menu }: { menu?: ReactNode }) {
   return (
     <header className="sticky top-0 z-40 bg-white/95 backdrop-blur">
       <RayasDiagonales />
       <div className="flex items-center justify-between gap-3 border-b border-black/5 px-4 py-2">
         <div className="flex items-center gap-2">
+          {menu}
           <Image
             src="/logo.png"
             alt={NOMBRE_MARCA}

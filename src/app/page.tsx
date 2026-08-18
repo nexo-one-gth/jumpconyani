@@ -19,8 +19,7 @@ export const dynamic = "force-dynamic";
 export default function Home() {
   return (
     <>
-      <Header />
-      <MenuSecciones />
+      <Header menu={<MenuSecciones />} />
       <main className="flex-1 pb-4">
         <Hero />
         <SelectorHorarios />
