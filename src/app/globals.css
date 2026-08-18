@@ -1,0 +1,81 @@
+@import "tailwindcss";
+
+/* Colores y tipografías del Manual de Marca — Jumping con Yani (agosto 2026). */
+@theme inline {
+  --color-marca-rosa: #f6aee3;
+  --color-marca-rojo: #c41f2c;
+  --color-marca-negro: #121014;
+
+  --font-titulo: var(--font-anton), "Arial Black", sans-serif;
+  --font-cuerpo: var(--font-poppins), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    sans-serif;
+  --font-firma: var(--font-caveat), cursive;
+}
+
+html {
+  -webkit-tap-highlight-color: transparent;
+  /* Para las anclas sueltas de la pagina (el boton "Ver horarios" del hero,
+     por ejemplo). El menu lateral no usa esto: anima el scroll el mismo
+     (ver MenuSecciones.tsx). El recorte por el header sticky lo pone cada
+     seccion con scroll-mt. */
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: var(--font-cuerpo);
+}
+
+@layer components {
+  /* Cada seccion de la home ocupa al menos una pantalla y centra su contenido:
+     al saltar desde el menu lateral se llega a una vista limpia, sin restos de
+     la seccion anterior asomando arriba o abajo.
+
+     El padding deja aire para las dos barras que flotan encima (el header
+     sticky arriba, la de WhatsApp abajo). Si el contenido no entra igual
+     -- sponsors con los doce logos, por ejemplo -- la seccion crece y se
+     scrollea normal: esto es un piso, no un techo. */
+  .seccion-pantalla {
+    display: flex;
+    min-height: 100svh;
+    flex-direction: column;
+    justify-content: center;
+    padding-top: 5.5rem;
+    padding-bottom: 6.5rem;
+    scroll-margin-top: 5rem;
+  }
+}
+
+/* Cinta continua de sponsors dentro de la vista de un evento (ver
+   CintaSponsors.tsx). La lista se duplica en el componente y esto la
+   desplaza la mitad de su ancho, así el loop no se nota. */
+.cinta-sponsors-viewport {
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(90deg, transparent, black 8%, black 92%, transparent);
+  mask-image: linear-gradient(90deg, transparent, black 8%, black 92%, transparent);
+}
+
+.cinta-sponsors-track {
+  display: flex;
+  width: max-content;
+  gap: 0.75rem;
+  animation: cinta-sponsors 24s linear infinite;
+}
+
+@keyframes cinta-sponsors {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  .cinta-sponsors-track {
+    animation: none;
+  }
+}
