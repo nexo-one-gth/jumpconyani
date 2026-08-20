@@ -6,6 +6,7 @@ import { crearClienteSupabase } from "@/lib/supabase/client";
 import { NOMBRE_MARCA } from "@/lib/contacto";
 import NavPanel from "@/components/admin/NavPanel";
 import FormularioEvento from "@/components/admin/FormularioEvento";
+import SeccionProfesoras from "@/components/admin/SeccionProfesoras";
 import { COLUMNAS_EVENTO, filaAEvento, type Evento, type FilaEvento } from "@/lib/eventos";
 
 interface Props {
@@ -68,7 +69,12 @@ export default function PanelEventoEditar({ params }: Props) {
 
       {!evento && !error && <p className="mt-6 text-sm text-zinc-500">Cargando…</p>}
 
-      {evento && <FormularioEvento evento={evento} />}
+      {evento && (
+        <>
+          <FormularioEvento evento={evento} />
+          <SeccionProfesoras eventoId={evento.id} />
+        </>
+      )}
     </main>
   );
 }
