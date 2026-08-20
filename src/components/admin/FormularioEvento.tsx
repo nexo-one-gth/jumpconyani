@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type FormEvent } from "react";
+import { useMemo, useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { crearClienteSupabase } from "@/lib/supabase/client";
 import type { Evento, OpcionTraslado } from "@/lib/eventos";
@@ -35,6 +35,7 @@ export default function FormularioEvento({ evento }: Props) {
   const router = useRouter();
   const supabase = useMemo(() => crearClienteSupabase(), []);
   const esEdicion = !!evento;
+  const detallesDatosRef = useRef<HTMLDetailsElement>(null);
 
   const [slug, setSlug] = useState(evento?.slug ?? "");
   const [slugTocado, setSlugTocado] = useState(esEdicion);
@@ -109,6 +110,13 @@ export default function FormularioEvento({ evento }: Props) {
 
     if (!slug.trim() || !titulo.trim() || !fecha.trim() || !fechaOrden) {
       setError("Faltan completar campos obligatorios (título, identificador, fecha).");
+      // Esos campos viven dentro de "Datos del evento", que ahora se puede
+      // contraer: si están vacíos porque la sección estaba cerrada, la
+      // abrimos para que se vean los que faltan.
+      if (detallesDatosRef.current) {
+        detallesDatosRef.current.open = true;
+        detallesDatosRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
       return;
     }
     if (!esEdicion && !archivoFlyer) {
@@ -211,8 +219,13 @@ export default function FormularioEvento({ evento }: Props) {
         />
       </div>
 
-      <div>
-        <h2 className="font-titulo text-lg uppercase text-marca-negro">Datos del evento</h2>
+      <details ref={detallesDatosRef} className="group">
+        <summary className="flex cursor-pointer list-none items-center justify-between font-titulo text-lg uppercase text-marca-negro [&::-webkit-details-marker]:hidden">
+          Datos del evento
+          <span aria-hidden className="text-base text-zinc-400 transition-transform duration-200 group-open:rotate-180">
+            ▾
+          </span>
+        </summary>
 
         <label className="mt-3 flex flex-col gap-1">
           <span className="text-sm font-medium text-zinc-700">Título</span>
@@ -312,7 +325,7 @@ export default function FormularioEvento({ evento }: Props) {
             className="h-12 rounded-xl border border-zinc-300 px-3 text-base"
           />
         </label>
-      </div>
+      </details>
 
       <div>
         <h2 className="font-titulo text-lg uppercase text-marca-negro">Cómo llegar (opcional)</h2>
