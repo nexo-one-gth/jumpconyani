@@ -3,6 +3,7 @@
 import { use, useEffect, useMemo, useState, type FormEvent } from "react";
 import { crearClienteSupabase } from "@/lib/supabase/client";
 import { NOMBRE_MARCA } from "@/lib/contacto";
+import CintaSponsors from "@/components/eventos/CintaSponsors";
 
 interface Props {
   params: Promise<{ token: string }>;
@@ -218,6 +219,8 @@ export default function FormularioProfesora({ params }: Props) {
           </button>
         </form>
       )}
+
+      <CintaSponsors />
     </main>
   );
 }

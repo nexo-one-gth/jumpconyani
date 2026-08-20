@@ -33,6 +33,7 @@ export default function SeccionProfesoras({ eventoId }: Props) {
 
   const [profesoras, setProfesoras] = useState<FilaProfesoraEvento[] | null>(null);
   const [cantidadAlumnas, setCantidadAlumnas] = useState<Record<string, number>>({});
+  const [resumen, setResumen] = useState({ totalAlumnas: 0, recaudado: 0 });
   const [nombreNuevo, setNombreNuevo] = useState("");
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -63,12 +64,13 @@ export default function SeccionProfesoras({ eventoId }: Props) {
 
       if (!data || data.length === 0) {
         setCantidadAlumnas({});
+        setResumen({ totalAlumnas: 0, recaudado: 0 });
         return;
       }
 
       const { data: alumnas, error: errorAlumnas } = await supabase
         .from("alumnas_evento")
-        .select("profesora_evento_id")
+        .select("profesora_evento_id, pago, monto")
         .in(
           "profesora_evento_id",
           data.map((p) => p.id)
@@ -77,10 +79,13 @@ export default function SeccionProfesoras({ eventoId }: Props) {
       if (!vigente || errorAlumnas || !alumnas) return;
 
       const conteo: Record<string, number> = {};
+      let recaudado = 0;
       alumnas.forEach((fila) => {
         conteo[fila.profesora_evento_id] = (conteo[fila.profesora_evento_id] ?? 0) + 1;
+        if (fila.pago) recaudado += fila.monto ?? 0;
       });
       setCantidadAlumnas(conteo);
+      setResumen({ totalAlumnas: alumnas.length, recaudado });
     }
 
     cargar();
@@ -152,6 +157,13 @@ export default function SeccionProfesoras({ eventoId }: Props) {
         Agregá a cada profesora que participa. Copiale el link para mandarle por WhatsApp — ahí carga su lista de
         alumnas. Cuando tengas la lista, entrá a "Ver pagos" para llevar el registro de quién pagó.
       </p>
+
+      {profesoras !== null && profesoras.length > 0 && (
+        <p className="mt-3 rounded-xl bg-zinc-50 p-3 text-sm font-medium text-marca-negro">
+          {profesoras.length} profesora{profesoras.length === 1 ? "" : "s"} · {resumen.totalAlumnas} alumna
+          {resumen.totalAlumnas === 1 ? "" : "s"} · ${resumen.recaudado.toLocaleString("es-AR")} recaudado
+        </p>
+      )}
 
       {error && <p className="mt-3 rounded-xl bg-red-50 p-3 text-sm text-marca-rojo">{error}</p>}
 
