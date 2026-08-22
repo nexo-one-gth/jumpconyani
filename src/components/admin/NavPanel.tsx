@@ -2,6 +2,7 @@ import Link from "next/link";
 
 const PANTALLAS = [
   { href: "/admin", clave: "horarios", etiqueta: "Horarios" },
+  { href: "/admin/paquetes", clave: "paquetes", etiqueta: "Paquetes" },
   { href: "/admin/precios-textos", clave: "precios", etiqueta: "Precios y textos" },
   { href: "/admin/eventos", clave: "eventos", etiqueta: "Eventos" },
 ] as const;

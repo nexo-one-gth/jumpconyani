@@ -5,6 +5,7 @@ import Hero from "@/components/Hero";
 import MapaZona from "@/components/MapaZona";
 import QueEsJumping from "@/components/QueEsJumping";
 import MenuSecciones from "@/components/MenuSecciones";
+import SeccionPaquetes from "@/components/SeccionPaquetes";
 import SeccionSponsors from "@/components/SeccionSponsors";
 import SeccionTienda from "@/components/SeccionTienda";
 import SelectorHorarios from "@/components/SelectorHorarios";
@@ -23,6 +24,7 @@ export default function Home() {
       <main className="flex-1 pb-4">
         <Hero />
         <SelectorHorarios />
+        <SeccionPaquetes />
         <ListaEventos />
         <QueEsJumping />
         <SeccionTienda />

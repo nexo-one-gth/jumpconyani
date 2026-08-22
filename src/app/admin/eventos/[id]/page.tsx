@@ -7,6 +7,7 @@ import { NOMBRE_MARCA } from "@/lib/contacto";
 import NavPanel from "@/components/admin/NavPanel";
 import FormularioEvento from "@/components/admin/FormularioEvento";
 import SeccionProfesoras from "@/components/admin/SeccionProfesoras";
+import SeccionSponsorsEvento from "@/components/admin/SeccionSponsorsEvento";
 import { COLUMNAS_EVENTO, filaAEvento, type Evento, type FilaEvento } from "@/lib/eventos";
 
 interface Props {
@@ -73,6 +74,7 @@ export default function PanelEventoEditar({ params }: Props) {
         <>
           <FormularioEvento evento={evento} />
           <SeccionProfesoras eventoId={evento.id} />
+          <SeccionSponsorsEvento eventoId={evento.id} />
         </>
       )}
     </main>

@@ -57,8 +57,11 @@ body {
 .cinta-sponsors-track {
   display: flex;
   width: max-content;
-  gap: 0.75rem;
-  animation: cinta-sponsors 24s linear infinite;
+  gap: 1rem;
+  /* 50s (antes 24s): las cajas de logo se duplicaron de tamaño (22/8,
+     CintaSponsors.tsx) y el recorrido total es más largo. Sin este ajuste
+     la cinta se ve moviéndose más rápido que antes. */
+  animation: cinta-sponsors 50s linear infinite;
 }
 
 @keyframes cinta-sponsors {

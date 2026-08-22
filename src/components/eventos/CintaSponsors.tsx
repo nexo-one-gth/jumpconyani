@@ -9,6 +9,10 @@ import { SPONSORS } from "@/lib/sponsors";
  *
  * La lista se duplica una vez para que el loop sea continuo (cuando la
  * primera copia termina de desplazarse, la segunda ocupa su lugar).
+ *
+ * Cajas al doble de tamaño (22/8, pedido del cliente): 128x224 en vez de
+ * 64x112. La velocidad de la animación se ajustó en globals.css para que,
+ * con logos más grandes, no se sienta más rápida que antes.
  */
 export default function CintaSponsors() {
   if (SPONSORS.length === 0) return null;
@@ -21,13 +25,13 @@ export default function CintaSponsors() {
           {[...SPONSORS, ...SPONSORS].map((sponsor, indice) => (
             <div
               key={`${sponsor.nombre}-${indice}`}
-              className="flex h-16 w-28 shrink-0 items-center justify-center rounded-lg border border-zinc-200 bg-white p-2"
+              className="flex h-32 w-56 shrink-0 items-center justify-center rounded-xl border border-zinc-200 bg-white p-4"
             >
               <Image
                 src={sponsor.logo}
                 alt={sponsor.nombre}
-                width={96}
-                height={48}
+                width={192}
+                height={96}
                 className="h-full w-full object-contain"
               />
             </div>

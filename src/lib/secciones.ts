@@ -17,6 +17,7 @@ export interface Seccion {
 export const SECCIONES: Seccion[] = [
   { id: "inicio", rotulo: "Inicio", titulo: "Inicio" },
   { id: "horarios", rotulo: "Horarios", titulo: "Horarios de este mes" },
+  { id: "planes", rotulo: "Planes", titulo: "Planes semanales" },
   { id: "eventos", rotulo: "Eventos", titulo: "Eventos y masterclasses" },
   { id: "clases", rotulo: "Clases", titulo: "Sobre las clases" },
   { id: "tienda", rotulo: "Tienda", titulo: "Tienda" },
