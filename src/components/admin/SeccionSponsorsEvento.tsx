@@ -165,9 +165,14 @@ export default function SeccionSponsorsEvento({ eventoId }: Props) {
   }
 
   return (
-    <div className="mt-8 border-t border-zinc-200 pt-6">
-      <h2 className="font-titulo text-lg uppercase text-marca-negro">Sponsors del evento</h2>
-      <p className="text-sm text-zinc-500">
+    <details className="group mt-8 border-t border-zinc-200 pt-6">
+      <summary className="flex cursor-pointer list-none items-center justify-between font-titulo text-lg uppercase text-marca-negro [&::-webkit-details-marker]:hidden">
+        Sponsors del evento
+        <span aria-hidden className="text-base text-zinc-400 transition-transform duration-200 group-open:rotate-180">
+          ▾
+        </span>
+      </summary>
+      <p className="mt-2 text-sm text-zinc-500">
         Elegí de tu lista general a los sponsors que participan de este evento y copiales el link — ahí cargan con
         qué aportan, el detalle de la colaboración y los colaboradores que van a llevar.
       </p>
@@ -270,6 +275,6 @@ export default function SeccionSponsorsEvento({ eventoId }: Props) {
           })}
         </div>
       )}
-    </div>
+    </details>
   );
 }

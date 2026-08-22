@@ -15,6 +15,16 @@ interface Props {
   eventoId: string;
 }
 
+/** Saca acentos y pasa a minúsculas, para que la búsqueda por nombre no
+ * dependa de que se escriban las tildes igual. */
+function normalizarTexto(texto: string): string {
+  return texto
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase()
+    .trim();
+}
+
 /**
  * Bloque de "Profesoras invitadas" dentro de /admin/eventos/[id]. Yani
  * agrega el nombre de cada profesora que participa del evento y acá le
@@ -40,6 +50,14 @@ export default function SeccionProfesoras({ eventoId }: Props) {
   const [borrando, setBorrando] = useState<string | null>(null);
   const [tokenCopiado, setTokenCopiado] = useState<string | null>(null);
   const [claveRecarga, setClaveRecarga] = useState(0);
+  const [busqueda, setBusqueda] = useState("");
+
+  const profesorasFiltradas = useMemo(() => {
+    if (!profesoras) return [];
+    const termino = normalizarTexto(busqueda);
+    if (!termino) return profesoras;
+    return profesoras.filter((profesora) => normalizarTexto(profesora.nombre).includes(termino));
+  }, [profesoras, busqueda]);
 
   useEffect(() => {
     let vigente = true;
@@ -151,9 +169,14 @@ export default function SeccionProfesoras({ eventoId }: Props) {
   }
 
   return (
-    <div className="mt-8 border-t border-zinc-200 pt-6">
-      <h2 className="font-titulo text-lg uppercase text-marca-negro">Profesoras invitadas</h2>
-      <p className="text-sm text-zinc-500">
+    <details className="group mt-8 border-t border-zinc-200 pt-6">
+      <summary className="flex cursor-pointer list-none items-center justify-between font-titulo text-lg uppercase text-marca-negro [&::-webkit-details-marker]:hidden">
+        Profesoras invitadas
+        <span aria-hidden className="text-base text-zinc-400 transition-transform duration-200 group-open:rotate-180">
+          ▾
+        </span>
+      </summary>
+      <p className="mt-2 text-sm text-zinc-500">
         Agregá a cada profesora que participa. Copiale el link para mandarle por WhatsApp — ahí carga su lista de
         alumnas. Cuando tengas la lista, entrá a "Ver pagos" para llevar el registro de quién pagó.
       </p>
@@ -191,8 +214,24 @@ export default function SeccionProfesoras({ eventoId }: Props) {
       )}
 
       {profesoras !== null && profesoras.length > 0 && (
+        <input
+          type="search"
+          placeholder="Buscar profesora por nombre"
+          value={busqueda}
+          onChange={(e) => setBusqueda(e.target.value)}
+          className="mt-4 h-12 w-full rounded-xl border border-zinc-300 px-3 text-base"
+        />
+      )}
+
+      {profesoras !== null && profesoras.length > 0 && profesorasFiltradas.length === 0 && (
+        <p className="mt-3 rounded-xl bg-zinc-50 p-3 text-sm text-zinc-500">
+          No hay ninguna profesora que coincida con &quot;{busqueda}&quot;.
+        </p>
+      )}
+
+      {profesorasFiltradas.length > 0 && (
         <div className="mt-4 flex flex-col gap-2">
-          {profesoras.map((profesora) => {
+          {profesorasFiltradas.map((profesora) => {
             const cantidad = cantidadAlumnas[profesora.id] ?? 0;
             return (
               <div key={profesora.id} className="flex flex-wrap items-center gap-2 rounded-2xl border border-zinc-200 p-3">
@@ -228,6 +267,6 @@ export default function SeccionProfesoras({ eventoId }: Props) {
           })}
         </div>
       )}
-    </div>
+    </details>
   );
 }
