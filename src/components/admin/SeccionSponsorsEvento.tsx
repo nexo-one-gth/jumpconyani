@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { crearClienteSupabase } from "@/lib/supabase/client";
 import { SPONSORS } from "@/lib/sponsors";
 
@@ -10,10 +11,8 @@ interface FilaSponsorEvento {
   nombre_sponsor: string;
   logo_sponsor: string | null;
   token: string;
-  cantidad_colaboradores: number | null;
   aporte: string | null;
   detalle: string | null;
-  alias: string | null;
   creado_en: string;
 }
 
@@ -26,13 +25,18 @@ interface Props {
  * mecanismo que "Profesoras invitadas" (ver SeccionProfesoras.tsx): Yani
  * agrega al sponsor y le queda un link con token para copiar y mandarle por
  * WhatsApp — eso lleva a /sponsors/[token], donde el propio sponsor carga
- * cuántos colaboradores va a llevar, con qué aporta al evento, el detalle
- * de la colaboración y su alias (para que Yani sepa a dónde rendirle
- * cuentas). A diferencia de las profesoras, acá no se escribe un nombre
- * libre: se elige de la lista general de sponsors (src/lib/sponsors.ts),
- * así el nombre siempre coincide con uno de los que ya tienen logo. El
- * alias queda tras un desplegable en vez de mostrarse de una: es un dato
- * sensible y no hace falta que salte a la vista en la lista.
+ * con qué aporta al evento, el detalle de la colaboración, y los nombres de
+ * los colaboradores que va a llevar. A diferencia de las profesoras, acá no
+ * se escribe un nombre libre: se elige de la lista general de sponsors
+ * (src/lib/sponsors.ts), así el nombre siempre coincide con uno de los que
+ * ya tienen logo.
+ *
+ * La cantidad de colaboradores ya no es un número que carga el sponsor: se
+ * cuenta a partir de los nombres que cargó (tabla
+ * `colaboradores_sponsor_evento`), igual que la cantidad de alumnas de cada
+ * profesora. El alias que ve el sponsor en su formulario público es el de
+ * Yani (alias_pago), no uno propio — por eso ya no hay nada de alias que
+ * mostrar acá.
  *
  * La tabla `sponsors_evento` no tiene ningún acceso público: solo la
  * lee/escribe este componente con el cliente autenticado.
@@ -41,6 +45,7 @@ export default function SeccionSponsorsEvento({ eventoId }: Props) {
   const supabase = useMemo(() => crearClienteSupabase(), []);
 
   const [sponsorsEvento, setSponsorsEvento] = useState<FilaSponsorEvento[] | null>(null);
+  const [cantidadColaboradores, setCantidadColaboradores] = useState<Record<string, number>>({});
   const [nombreElegido, setNombreElegido] = useState("");
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -54,7 +59,7 @@ export default function SeccionSponsorsEvento({ eventoId }: Props) {
     async function cargar() {
       const { data, error: errorConsulta } = await supabase
         .from("sponsors_evento")
-        .select("id, nombre_sponsor, logo_sponsor, token, cantidad_colaboradores, aporte, detalle, alias, creado_en")
+        .select("id, nombre_sponsor, logo_sponsor, token, aporte, detalle, creado_en")
         .eq("evento_id", eventoId)
         .order("creado_en", { ascending: true });
 
@@ -68,6 +73,27 @@ export default function SeccionSponsorsEvento({ eventoId }: Props) {
 
       setError(null);
       setSponsorsEvento(data ?? []);
+
+      if (!data || data.length === 0) {
+        setCantidadColaboradores({});
+        return;
+      }
+
+      const { data: colaboradores, error: errorColaboradores } = await supabase
+        .from("colaboradores_sponsor_evento")
+        .select("sponsor_evento_id")
+        .in(
+          "sponsor_evento_id",
+          data.map((s) => s.id)
+        );
+
+      if (!vigente || errorColaboradores || !colaboradores) return;
+
+      const conteo: Record<string, number> = {};
+      colaboradores.forEach((fila) => {
+        conteo[fila.sponsor_evento_id] = (conteo[fila.sponsor_evento_id] ?? 0) + 1;
+      });
+      setCantidadColaboradores(conteo);
     }
 
     cargar();
@@ -142,8 +168,8 @@ export default function SeccionSponsorsEvento({ eventoId }: Props) {
     <div className="mt-8 border-t border-zinc-200 pt-6">
       <h2 className="font-titulo text-lg uppercase text-marca-negro">Sponsors del evento</h2>
       <p className="text-sm text-zinc-500">
-        Elegí de tu lista general a los sponsors que participan de este evento y copiales el link — ahí cargan
-        cuántos colaboradores llevan, con qué aportan, el detalle de la colaboración y su alias.
+        Elegí de tu lista general a los sponsors que participan de este evento y copiales el link — ahí cargan con
+        qué aportan, el detalle de la colaboración y los colaboradores que van a llevar.
       </p>
 
       {error && <p className="mt-3 rounded-xl bg-red-50 p-3 text-sm text-marca-rojo">{error}</p>}
@@ -187,63 +213,61 @@ export default function SeccionSponsorsEvento({ eventoId }: Props) {
 
       {sponsorsEvento !== null && sponsorsEvento.length > 0 && (
         <div className="mt-4 flex flex-col gap-2">
-          {sponsorsEvento.map((sponsor) => (
-            <div key={sponsor.id} className="rounded-2xl border border-zinc-200 p-3">
-              <div className="flex flex-wrap items-center gap-3">
-                {sponsor.logo_sponsor && (
-                  <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-zinc-50">
-                    <Image
-                      src={sponsor.logo_sponsor}
-                      alt={sponsor.nombre_sponsor}
-                      width={44}
-                      height={44}
-                      className="h-full w-full object-contain"
-                    />
+          {sponsorsEvento.map((sponsor) => {
+            const cantidad = cantidadColaboradores[sponsor.id] ?? 0;
+            return (
+              <div key={sponsor.id} className="rounded-2xl border border-zinc-200 p-3">
+                <div className="flex flex-wrap items-center gap-3">
+                  {sponsor.logo_sponsor && (
+                    <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-zinc-50">
+                      <Image
+                        src={sponsor.logo_sponsor}
+                        alt={sponsor.nombre_sponsor}
+                        width={44}
+                        height={44}
+                        className="h-full w-full object-contain"
+                      />
+                    </div>
+                  )}
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-marca-negro">{sponsor.nombre_sponsor}</p>
+                    <p className="text-xs text-zinc-500">
+                      {cantidad === 0 && !sponsor.aporte
+                        ? "Todavía no completó sus datos"
+                        : [`${cantidad} colaborador${cantidad === 1 ? "" : "es"}`, sponsor.aporte]
+                            .filter(Boolean)
+                            .join(" · ")}
+                    </p>
+                    {sponsor.detalle && <p className="mt-1 text-xs text-zinc-500">{sponsor.detalle}</p>}
                   </div>
-                )}
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-marca-negro">{sponsor.nombre_sponsor}</p>
-                  <p className="text-xs text-zinc-500">
-                    {sponsor.cantidad_colaboradores === null && !sponsor.aporte
-                      ? "Todavía no completó sus datos"
-                      : [
-                          sponsor.cantidad_colaboradores !== null
-                            ? `${sponsor.cantidad_colaboradores} colaborador${sponsor.cantidad_colaboradores === 1 ? "" : "es"}`
-                            : null,
-                          sponsor.aporte,
-                        ]
-                          .filter(Boolean)
-                          .join(" · ")}
-                  </p>
-                  {sponsor.detalle && <p className="mt-1 text-xs text-zinc-500">{sponsor.detalle}</p>}
                 </div>
-                <button
-                  type="button"
-                  onClick={() => copiarLink(sponsor)}
-                  className="flex h-11 items-center justify-center rounded-full border border-zinc-300 px-3 text-xs font-medium text-zinc-600"
-                >
-                  {tokenCopiado === sponsor.token ? "¡Copiado!" : "Copiar link"}
-                </button>
-                <button
-                  type="button"
-                  disabled={borrando === sponsor.id}
-                  onClick={() => eliminarSponsor(sponsor)}
-                  className="flex h-11 items-center justify-center rounded-full border border-zinc-300 px-3 text-xs font-medium text-zinc-500 disabled:opacity-60"
-                >
-                  Quitar
-                </button>
-              </div>
 
-              {sponsor.alias && (
-                <details className="group mt-2">
-                  <summary className="cursor-pointer list-none text-xs font-medium text-zinc-400 [&::-webkit-details-marker]:hidden">
-                    Ver alias
-                  </summary>
-                  <p className="mt-1 text-xs text-zinc-600">{sponsor.alias}</p>
-                </details>
-              )}
-            </div>
-          ))}
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <Link
+                    href={`/admin/eventos/${eventoId}/sponsors/${sponsor.id}`}
+                    className="flex h-11 items-center justify-center rounded-full bg-marca-rosa px-3 text-xs font-semibold text-marca-negro"
+                  >
+                    Ver colaboradores
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={() => copiarLink(sponsor)}
+                    className="flex h-11 items-center justify-center rounded-full border border-zinc-300 px-3 text-xs font-medium text-zinc-600"
+                  >
+                    {tokenCopiado === sponsor.token ? "¡Copiado!" : "Copiar link"}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={borrando === sponsor.id}
+                    onClick={() => eliminarSponsor(sponsor)}
+                    className="flex h-11 items-center justify-center rounded-full border border-zinc-300 px-3 text-xs font-medium text-zinc-500 disabled:opacity-60"
+                  >
+                    Quitar
+                  </button>
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
     </div>

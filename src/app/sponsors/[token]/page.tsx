@@ -18,10 +18,10 @@ interface DatosFormulario {
   evento_horario?: string | null;
   evento_fecha_orden?: string;
   cerrado?: boolean;
-  cantidad_colaboradores?: number | null;
   aporte?: string | null;
   detalle?: string | null;
-  alias?: string | null;
+  alias_pago?: string | null;
+  colaboradores?: { id: string; nombre: string }[];
 }
 
 /** "2026-09-24" -> "24/9". Mismo criterio que el resto del proyecto: se arma
@@ -33,14 +33,20 @@ function formatearDiaMes(fechaISO: string): string {
 
 /**
  * Formulario público (sin login) para que un sponsor invitado a un evento
- * cargue su propia colaboración: cuántos colaboradores lleva, con qué
- * aporta, el detalle, y su alias. El link (/sponsors/[token]) lo genera y
- * comparte Yani desde /admin/eventos/[id] (ver SeccionSponsorsEvento.tsx).
+ * cargue su propia colaboración: con qué aporta, el detalle, y los nombres
+ * de los colaboradores que va a llevar. El link (/sponsors/[token]) lo
+ * genera y comparte Yani desde /admin/eventos/[id] (ver
+ * SeccionSponsorsEvento.tsx).
  *
  * Mismo patrón de seguridad que /profesoras/[token]: el token es la única
  * credencial, y toda la lógica de qué se puede leer/escribir vive en las
  * funciones SECURITY DEFINER obtener_formulario_sponsor /
  * guardar_datos_sponsor, no en una policy de RLS abierta.
+ *
+ * El alias que se muestra acá es el de Yani (alias_pago, el mismo dato que
+ * ya se le mostraba a las profesoras) — de solo lectura, con botón de
+ * copiar. El sponsor no carga un alias propio: no hay ningún reintegro de
+ * Yani hacia el sponsor en este flujo.
  */
 export default function FormularioSponsor({ params }: Props) {
   const { token } = use(params);
@@ -48,13 +54,13 @@ export default function FormularioSponsor({ params }: Props) {
 
   const [datos, setDatos] = useState<DatosFormulario | null>(null);
   const [errorCarga, setErrorCarga] = useState<string | null>(null);
-  const [cantidadColaboradores, setCantidadColaboradores] = useState("");
   const [aporte, setAporte] = useState("");
   const [detalle, setDetalle] = useState("");
-  const [alias, setAlias] = useState("");
+  const [colaboradores, setColaboradores] = useState<string[]>([]);
   const [guardando, setGuardando] = useState(false);
   const [errorGuardado, setErrorGuardado] = useState<string | null>(null);
   const [guardadoOk, setGuardadoOk] = useState(false);
+  const [aliasCopiado, setAliasCopiado] = useState(false);
 
   async function cargarFormulario() {
     setErrorCarga(null);
@@ -64,14 +70,9 @@ export default function FormularioSponsor({ params }: Props) {
       const resultado = data as DatosFormulario;
       setDatos(resultado);
       if (resultado.encontrado) {
-        setCantidadColaboradores(
-          resultado.cantidad_colaboradores !== null && resultado.cantidad_colaboradores !== undefined
-            ? String(resultado.cantidad_colaboradores)
-            : ""
-        );
         setAporte(resultado.aporte ?? "");
         setDetalle(resultado.detalle ?? "");
-        setAlias(resultado.alias ?? "");
+        setColaboradores((resultado.colaboradores ?? []).map((c) => c.nombre));
       }
     } catch {
       setErrorCarga("No se pudo cargar este link. Probá de nuevo en un rato o avisale a Yani.");
@@ -84,25 +85,32 @@ export default function FormularioSponsor({ params }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- solo al montar, con el token de la URL
   }, [token]);
 
+  function agregarColaborador() {
+    setColaboradores((actual) => [...actual, ""]);
+  }
+
+  function actualizarColaborador(indice: number, valor: string) {
+    setColaboradores((actual) => actual.map((nombre, i) => (i === indice ? valor : nombre)));
+  }
+
+  function quitarColaborador(indice: number) {
+    setColaboradores((actual) => actual.filter((_, i) => i !== indice));
+  }
+
   async function guardar(e: FormEvent) {
     e.preventDefault();
     setErrorGuardado(null);
     setGuardadoOk(false);
 
-    const cantidadLimpia = cantidadColaboradores.trim() === "" ? null : Number(cantidadColaboradores);
-    if (cantidadLimpia !== null && (!Number.isFinite(cantidadLimpia) || cantidadLimpia < 0)) {
-      setErrorGuardado("La cantidad de colaboradores tiene que ser un número válido.");
-      return;
-    }
+    const nombresLimpios = colaboradores.map((n) => n.trim()).filter((n) => n.length > 0);
 
     setGuardando(true);
     try {
       const { error } = await supabase.rpc("guardar_datos_sponsor", {
         p_token: token,
-        p_cantidad_colaboradores: cantidadLimpia,
         p_aporte: aporte,
         p_detalle: detalle,
-        p_alias: alias,
+        p_nombres: nombresLimpios,
       });
 
       if (error) {
@@ -119,6 +127,18 @@ export default function FormularioSponsor({ params }: Props) {
       await cargarFormulario();
     } finally {
       setGuardando(false);
+    }
+  }
+
+  async function copiarAlias() {
+    if (!datos?.alias_pago) return;
+    try {
+      await navigator.clipboard.writeText(datos.alias_pago);
+      setAliasCopiado(true);
+      setTimeout(() => setAliasCopiado(false), 2000);
+    } catch {
+      // Sin permiso de portapapeles: el alias ya está visible en la pantalla
+      // para copiarlo a mano, así que no hace falta mostrar un error.
     }
   }
 
@@ -169,12 +189,19 @@ export default function FormularioSponsor({ params }: Props) {
             algo, avisale a Yani por WhatsApp.
           </p>
           <div className="mt-4 flex flex-col gap-2 text-sm text-marca-negro">
-            <p className="rounded-xl border border-zinc-200 px-3 py-3">
-              Colaboradores: {datos.cantidad_colaboradores ?? "sin cargar"}
-            </p>
             <p className="rounded-xl border border-zinc-200 px-3 py-3">Aporte: {datos.aporte || "sin cargar"}</p>
             <p className="rounded-xl border border-zinc-200 px-3 py-3">Detalle: {datos.detalle || "sin cargar"}</p>
-            <p className="rounded-xl border border-zinc-200 px-3 py-3">Alias: {datos.alias || "sin cargar"}</p>
+          </div>
+          <div className="mt-4">
+            <h2 className="font-titulo text-lg uppercase text-marca-negro">Colaboradores ({colaboradores.length})</h2>
+            <div className="mt-2 flex flex-col gap-2">
+              {colaboradores.length === 0 && <p className="text-sm text-zinc-500">No se cargó ningún colaborador.</p>}
+              {colaboradores.map((nombre, i) => (
+                <p key={i} className="rounded-xl border border-zinc-200 px-3 py-3 text-sm text-marca-negro">
+                  {nombre}
+                </p>
+              ))}
+            </div>
           </div>
         </div>
       ) : (
@@ -183,19 +210,6 @@ export default function FormularioSponsor({ params }: Props) {
             Contanos tu colaboración con este evento. Podés volver a entrar a este mismo link para corregir hasta el
             día {datos.evento_fecha_orden ? formatearDiaMes(datos.evento_fecha_orden) : "del evento"}.
           </p>
-
-          <label className="flex flex-col gap-1">
-            <span className="text-sm font-medium text-marca-negro">Cantidad de colaboradores presentes</span>
-            <input
-              type="number"
-              inputMode="numeric"
-              min={0}
-              placeholder="Ej: 2"
-              value={cantidadColaboradores}
-              onChange={(e) => setCantidadColaboradores(e.target.value)}
-              className="h-12 rounded-xl border border-zinc-300 px-3 text-base"
-            />
-          </label>
 
           <label className="flex flex-col gap-1">
             <span className="text-sm font-medium text-marca-negro">¿Con qué aportás al evento?</span>
@@ -219,16 +233,42 @@ export default function FormularioSponsor({ params }: Props) {
             />
           </label>
 
-          <label className="flex flex-col gap-1">
-            <span className="text-sm font-medium text-marca-negro">Tu alias (para rendirte cuentas)</span>
-            <input
-              type="text"
-              placeholder="Ej: nombre.negocio.mp"
-              value={alias}
-              onChange={(e) => setAlias(e.target.value)}
-              className="h-12 rounded-xl border border-zinc-300 px-3 text-base"
-            />
-          </label>
+          <div>
+            <h2 className="font-titulo text-lg uppercase text-marca-negro">Colaboradores ({colaboradores.length})</h2>
+            <p className="text-sm text-zinc-500">
+              Cargá el nombre de cada colaborador que va a estar presente en el evento.
+            </p>
+          </div>
+
+          <div className="flex flex-col gap-2">
+            {colaboradores.map((nombre, indice) => (
+              <div key={indice} className="flex gap-2">
+                <input
+                  type="text"
+                  placeholder="Nombre y apellido"
+                  value={nombre}
+                  onChange={(e) => actualizarColaborador(indice, e.target.value)}
+                  className="h-12 flex-1 rounded-xl border border-zinc-300 px-3 text-base"
+                />
+                <button
+                  type="button"
+                  onClick={() => quitarColaborador(indice)}
+                  className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-zinc-300 text-zinc-500"
+                  aria-label="Quitar colaborador"
+                >
+                  ✕
+                </button>
+              </div>
+            ))}
+          </div>
+
+          <button
+            type="button"
+            onClick={agregarColaborador}
+            className="flex h-12 items-center justify-center rounded-full border border-dashed border-zinc-300 px-4 text-sm font-medium text-zinc-600"
+          >
+            + Agregar colaborador
+          </button>
 
           {errorGuardado && <p className="rounded-xl bg-red-50 p-3 text-sm text-marca-rojo">{errorGuardado}</p>}
           {guardadoOk && !errorGuardado && (
@@ -243,6 +283,22 @@ export default function FormularioSponsor({ params }: Props) {
             {guardando ? "Guardando…" : "Guardar"}
           </button>
         </form>
+      )}
+
+      {datos.alias_pago && (
+        <div className="mt-6 rounded-2xl bg-zinc-50 p-4">
+          <h3 className="font-titulo text-base uppercase text-marca-negro">Alias de pago</h3>
+          <div className="mt-2 flex items-center gap-2">
+            <p className="flex-1 truncate text-sm font-medium text-marca-negro">{datos.alias_pago}</p>
+            <button
+              type="button"
+              onClick={copiarAlias}
+              className="flex h-10 shrink-0 items-center justify-center rounded-full border border-zinc-300 px-3 text-xs font-medium text-zinc-600"
+            >
+              {aliasCopiado ? "¡Copiado!" : "Copiar"}
+            </button>
+          </div>
+        </div>
       )}
 
       <CintaSponsors />
