@@ -11,6 +11,7 @@ interface Formulario {
   precioConjunto: string;
   heroTitulo: string;
   heroBajada: string;
+  aliasPago: string;
 }
 
 export default function PanelPreciosYTextos() {
@@ -26,7 +27,7 @@ export default function PanelPreciosYTextos() {
     let vigente = true;
     supabase
       .from("configuracion_home")
-      .select("precio_clase, precio_conjunto, hero_titulo, hero_bajada")
+      .select("precio_clase, precio_conjunto, hero_titulo, hero_bajada, alias_pago")
       .eq("id", 1)
       .maybeSingle()
       .then(({ data, error: errorConsulta }) => {
@@ -40,6 +41,7 @@ export default function PanelPreciosYTextos() {
           precioConjunto: data.precio_conjunto ?? "",
           heroTitulo: data.hero_titulo,
           heroBajada: data.hero_bajada,
+          aliasPago: data.alias_pago ?? "",
         });
       });
     return () => {
@@ -61,6 +63,7 @@ export default function PanelPreciosYTextos() {
         precio_conjunto: form.precioConjunto.trim() || null,
         hero_titulo: form.heroTitulo.trim(),
         hero_bajada: form.heroBajada.trim(),
+        alias_pago: form.aliasPago.trim() || null,
         actualizado_en: new Date().toISOString(),
       })
       .eq("id", 1);
@@ -130,6 +133,20 @@ export default function PanelPreciosYTextos() {
                 onChange={(e) => setForm({ ...form, precioConjunto: e.target.value })}
                 className="h-12 rounded-xl border border-zinc-300 px-3 text-base"
               />
+            </label>
+
+            <label className="mt-3 flex flex-col gap-1">
+              <span className="text-sm font-medium text-zinc-700">Alias de pago</span>
+              <input
+                type="text"
+                placeholder="ej: yani.jumping"
+                value={form.aliasPago}
+                onChange={(e) => setForm({ ...form, aliasPago: e.target.value })}
+                className="h-12 rounded-xl border border-zinc-300 px-3 text-base"
+              />
+              <span className="text-xs text-zinc-400">
+                Se lo muestra a las profesoras en el link de sus alumnas, para que sepan a dónde transferir.
+              </span>
             </label>
           </div>
 

@@ -16,8 +16,17 @@ interface DatosFormulario {
   evento_fecha?: string;
   evento_horario?: string | null;
   evento_precio?: string | null;
+  evento_fecha_orden?: string;
+  alias_pago?: string | null;
   cerrado?: boolean;
   alumnas?: { id: string; nombre: string }[];
+}
+
+/** "2026-09-24" -> "24/9". Arma la fecha a mano, como en el resto del
+ * proyecto, para no correr riesgo de que el huso horario la corra un día. */
+function formatearDiaMes(fechaISO: string): string {
+  const [, mes, dia] = fechaISO.split("-").map(Number);
+  return `${dia}/${mes}`;
 }
 
 /**
@@ -44,6 +53,7 @@ export default function FormularioProfesora({ params }: Props) {
   const [guardando, setGuardando] = useState(false);
   const [errorGuardado, setErrorGuardado] = useState<string | null>(null);
   const [guardadoOk, setGuardadoOk] = useState(false);
+  const [aliasCopiado, setAliasCopiado] = useState(false);
 
   async function cargarFormulario() {
     setErrorCarga(null);
@@ -109,6 +119,18 @@ export default function FormularioProfesora({ params }: Props) {
     }
   }
 
+  async function copiarAlias() {
+    if (!datos?.alias_pago) return;
+    try {
+      await navigator.clipboard.writeText(datos.alias_pago);
+      setAliasCopiado(true);
+      setTimeout(() => setAliasCopiado(false), 2000);
+    } catch {
+      // Sin permiso de portapapeles: el alias ya está visible en la pantalla
+      // para copiarlo a mano, así que no hace falta mostrar un error.
+    }
+  }
+
   if (errorCarga) {
     return (
       <main className="flex min-h-full flex-col justify-center px-4 py-10 text-center">
@@ -139,7 +161,7 @@ export default function FormularioProfesora({ params }: Props) {
   return (
     <main className="min-h-full px-4 py-8">
       <h1 className="font-titulo text-2xl uppercase text-marca-negro">{NOMBRE_MARCA}</h1>
-      <p className="mt-1 text-sm text-zinc-500">Hola {datos.profesora_nombre} 👋</p>
+      <p className="mt-1 text-lg text-zinc-600">Hola {datos.profesora_nombre} 👋</p>
 
       <div className="mt-4 rounded-2xl bg-zinc-50 p-4">
         <p className="font-titulo text-lg uppercase leading-tight text-marca-negro">{datos.evento_titulo}</p>
@@ -171,7 +193,7 @@ export default function FormularioProfesora({ params }: Props) {
             <h2 className="font-titulo text-lg uppercase text-marca-negro">Alumnas ({alumnas.length})</h2>
             <p className="text-sm text-zinc-500">
               Cargá los nombres de tus alumnas. Podés volver a entrar a este mismo link para agregar o corregir hasta
-              el día del evento.
+              el día {datos.evento_fecha_orden ? formatearDiaMes(datos.evento_fecha_orden) : "del evento"}.
             </p>
           </div>
 
@@ -218,6 +240,22 @@ export default function FormularioProfesora({ params }: Props) {
             {guardando ? "Guardando…" : "Guardar lista"}
           </button>
         </form>
+      )}
+
+      {datos.alias_pago && (
+        <div className="mt-6 rounded-2xl bg-zinc-50 p-4">
+          <h3 className="font-titulo text-base uppercase text-marca-negro">Alias de pago</h3>
+          <div className="mt-2 flex items-center gap-2">
+            <p className="flex-1 truncate text-sm font-medium text-marca-negro">{datos.alias_pago}</p>
+            <button
+              type="button"
+              onClick={copiarAlias}
+              className="flex h-10 shrink-0 items-center justify-center rounded-full border border-zinc-300 px-3 text-xs font-medium text-zinc-600"
+            >
+              {aliasCopiado ? "¡Copiado!" : "Copiar"}
+            </button>
+          </div>
+        </div>
       )}
 
       <CintaSponsors />
