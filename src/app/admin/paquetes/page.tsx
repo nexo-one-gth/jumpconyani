@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { crearClienteSupabase } from "@/lib/supabase/client";
 import { NOMBRE_MARCA } from "@/lib/contacto";
 import { DIAS_SEMANA } from "@/lib/paquetes";
+import { sincronizarClasesDelMes } from "@/lib/sincronizacionClases";
 import NavPanel from "@/components/admin/NavPanel";
 
 interface FilaPaquete {
@@ -114,6 +115,28 @@ export default function PanelPaquetes() {
   const [claveRecarga, setClaveRecarga] = useState(0);
   const recargar = useCallback(() => setClaveRecarga((c) => c + 1), []);
 
+  const [avisoSincronizacion, setAvisoSincronizacion] = useState<string | null>(null);
+
+  // Cada vez que un paquete cambia, se completa la grilla del mes en curso
+  // con sus días/horarios (sin borrar ni pisar nada — ver
+  // sincronizacionClases.ts). Así Yani no tiene que ir a /admin a repetir
+  // manualmente lo que ya cargó acá.
+  async function sincronizarMesActual() {
+    const hoy = new Date();
+    try {
+      const { creadas } = await sincronizarClasesDelMes(supabase, hoy.getFullYear(), hoy.getMonth());
+      setAvisoSincronizacion(
+        creadas > 0
+          ? `Se reflejó en la grilla de este mes: ${creadas} clases nuevas.`
+          : "La grilla de este mes ya reflejaba todos los paquetes."
+      );
+    } catch {
+      // No se interrumpe el guardado del paquete por esto: Yani puede
+      // sincronizar a mano desde /admin si hace falta.
+      setAvisoSincronizacion("El paquete se guardó, pero no se pudo actualizar la grilla de este mes automáticamente.");
+    }
+  }
+
   useEffect(() => {
     let vigente = true;
     supabase
@@ -193,6 +216,7 @@ export default function PanelPaquetes() {
       return;
     }
     recargar();
+    sincronizarMesActual();
   }
 
   async function borrarFila(id: string) {
@@ -206,6 +230,9 @@ export default function PanelPaquetes() {
       return;
     }
     recargar();
+    // Borrar un paquete no borra las clases que ya generó: si Yani quiere
+    // sacarlas de la grilla, las elimina a mano desde /admin (mismo
+    // criterio "no perder datos sin avisar" que el resto del panel).
   }
 
   async function crearPaquete(evento: FormEvent) {
@@ -241,6 +268,7 @@ export default function PanelPaquetes() {
     setNuevosHorarios([]);
     setNuevoHorarioPendiente("");
     recargar();
+    sincronizarMesActual();
   }
 
   async function cerrarSesion() {
@@ -268,6 +296,10 @@ export default function PanelPaquetes() {
       <NavPanel actual="paquetes" />
 
       {error && <p className="mt-4 rounded-xl bg-red-50 p-3 text-sm text-marca-rojo">{error}</p>}
+
+      {avisoSincronizacion && (
+        <p className="mt-4 rounded-xl bg-green-50 p-3 text-sm text-green-700">{avisoSincronizacion}</p>
+      )}
 
       {paquetes === null && <p className="mt-6 text-sm text-zinc-500">Cargando…</p>}
 

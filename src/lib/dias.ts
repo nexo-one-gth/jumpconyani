@@ -27,3 +27,21 @@ export function formatearDias(dias: string[]): string {
   if (ordenados.length === 1) return ordenados[0];
   return `${ordenados.slice(0, -1).join(", ")} y ${ordenados[ordenados.length - 1]}`;
 }
+
+/** Todas las fechas ("2026-08-03") del mes pedido cuyo día de la semana está entre los elegidos. */
+export function fechasDelMesQueCaenEn(anio: number, mes: number, diasElegidos: string[]): string[] {
+  const indicesElegidos = new Set<number>(
+    DIAS_SEMANA.filter((dia) => diasElegidos.includes(dia.clave)).map((dia) => dia.indiceJs)
+  );
+  const fechas: string[] = [];
+  const cursor = new Date(anio, mes, 1);
+  while (cursor.getMonth() === mes) {
+    if (indicesElegidos.has(cursor.getDay())) {
+      fechas.push(
+        `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, "0")}-${String(cursor.getDate()).padStart(2, "0")}`
+      );
+    }
+    cursor.setDate(cursor.getDate() + 1);
+  }
+  return fechas;
+}

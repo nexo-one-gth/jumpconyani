@@ -4,7 +4,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { crearClienteSupabase } from "@/lib/supabase/client";
 import { NOMBRE_MARCA } from "@/lib/contacto";
-import { DIAS_HABILES, DIAS_SEMANA } from "@/lib/dias";
+import { DIAS_HABILES, fechasDelMesQueCaenEn } from "@/lib/dias";
+import { sincronizarClasesDelMes } from "@/lib/sincronizacionClases";
 import NavPanel from "@/components/admin/NavPanel";
 
 interface FilaClase {
@@ -25,24 +26,6 @@ function formatearFecha(fechaISO: string): string {
 
 function formatearHora(horaISO: string): string {
   return horaISO.slice(0, 5); // "09:00:00" -> "09:00"
-}
-
-/** Todas las fechas ("2026-08-03") del mes pedido cuyo día de la semana está entre los elegidos. */
-function fechasDelMesQueCaenEn(anio: number, mes: number, diasElegidos: string[]): string[] {
-  const indicesElegidos = new Set<number>(
-    DIAS_SEMANA.filter((dia) => diasElegidos.includes(dia.clave)).map((dia) => dia.indiceJs)
-  );
-  const fechas: string[] = [];
-  const cursor = new Date(anio, mes, 1);
-  while (cursor.getMonth() === mes) {
-    if (indicesElegidos.has(cursor.getDay())) {
-      fechas.push(
-        `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, "0")}-${String(cursor.getDate()).padStart(2, "0")}`
-      );
-    }
-    cursor.setDate(cursor.getDate() + 1);
-  }
-  return fechas;
 }
 
 export default function PanelHorarios() {
@@ -67,6 +50,12 @@ export default function PanelHorarios() {
   const [cupoLote, setCupoLote] = useState("13");
   const [generando, setGenerando] = useState(false);
   const [resultadoLote, setResultadoLote] = useState<string | null>(null);
+
+  // Sincronización con Paquetes: completa el mes visible con lo que falte
+  // según los días/horarios de cada paquete cargado. Es aditiva (no borra ni
+  // reemplaza nada) — ver src/lib/sincronizacionClases.ts.
+  const [sincronizando, setSincronizando] = useState(false);
+  const [resultadoSincronizacion, setResultadoSincronizacion] = useState<string | null>(null);
 
   const inicioMes = useMemo(() => {
     const d = mesVisible;
@@ -273,6 +262,25 @@ export default function PanelHorarios() {
     recargar();
   }
 
+  async function sincronizarConPaquetes() {
+    setSincronizando(true);
+    setError(null);
+    setResultadoSincronizacion(null);
+    try {
+      const { creadas } = await sincronizarClasesDelMes(supabase, mesVisible.getFullYear(), mesVisible.getMonth());
+      setResultadoSincronizacion(
+        creadas > 0
+          ? `Se agregaron ${creadas} clases nuevas según los paquetes cargados.`
+          : "Ya estaba todo al día: ningún paquete tenía un día/horario sin cargar este mes."
+      );
+      if (creadas > 0) recargar();
+    } catch (excepcion) {
+      setError("No se pudo sincronizar: " + (excepcion instanceof Error ? excepcion.message : String(excepcion)));
+    } finally {
+      setSincronizando(false);
+    }
+  }
+
   async function cerrarSesion() {
     await supabase.auth.signOut();
     router.push("/admin/login");
@@ -331,16 +339,41 @@ export default function PanelHorarios() {
         </button>
       </div>
 
+      <div className="mt-5 flex flex-col gap-3 rounded-2xl border border-zinc-200 p-3">
+        <div>
+          <p className="text-sm font-semibold text-marca-negro">Sincronizar con los paquetes</p>
+          <p className="text-xs text-zinc-500">
+            Completa el mes que estás viendo con los días y horarios de cada paquete cargado en{" "}
+            <span className="font-medium">Paquetes</span>. Solo agrega lo que falte: si una fecha y
+            horario ya tienen una clase cargada, no la toca.
+          </p>
+        </div>
+
+        {resultadoSincronizacion && (
+          <p className="rounded-xl bg-green-50 p-3 text-sm text-green-700">{resultadoSincronizacion}</p>
+        )}
+
+        <button
+          type="button"
+          onClick={sincronizarConPaquetes}
+          disabled={sincronizando}
+          className="flex h-11 items-center justify-center rounded-full bg-marca-rosa px-4 text-sm font-semibold text-marca-negro disabled:opacity-60"
+        >
+          {sincronizando ? "Sincronizando…" : "Sincronizar este mes con los paquetes"}
+        </button>
+      </div>
+
       <form
         onSubmit={generarClasesSemanales}
         className="mt-5 flex flex-col gap-3 rounded-2xl border border-zinc-200 p-3"
       >
         <div>
-          <p className="text-sm font-semibold text-marca-negro">Cargar clases semanales</p>
+          <p className="text-sm font-semibold text-marca-negro">Forzar días y horario (excepciones)</p>
           <p className="text-xs text-zinc-500">
-            Elegí los días y un horario: se crea una clase en cada fecha del mes que estás viendo. Si ya
-            había una clase cargada en esa fecha y ese horario, se reemplaza (vuelve a quedar con el cupo
-            lleno).
+            Para cuando necesitás pisar lo que ya está cargado (por ejemplo, limpiar una agenda de
+            muestra): elegí los días y un horario y se reemplaza esa fecha y horario en todo el mes,
+            que vuelve a quedar con el cupo lleno. Para la carga normal del mes, usá &ldquo;Sincronizar
+            con los paquetes&rdquo; de arriba.
           </p>
         </div>
 
@@ -400,7 +433,7 @@ export default function PanelHorarios() {
           disabled={generando}
           className="flex h-11 items-center justify-center rounded-full bg-marca-rosa px-4 text-sm font-semibold text-marca-negro disabled:opacity-60"
         >
-          {generando ? "Generando…" : "Generar clases del mes"}
+          {generando ? "Reemplazando…" : "Reemplazar este día y horario"}
         </button>
       </form>
 
