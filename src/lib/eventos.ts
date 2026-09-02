@@ -20,6 +20,28 @@ export interface OpcionTraslado {
   detalle: string;
 }
 
+/** Íconos disponibles para los beneficios de la propuesta a sponsors
+ * (ver IconosBeneficio.tsx). Set fijo para que Yani elija de un desplegable
+ * y no tenga que subir imágenes. */
+export const ICONOS_BENEFICIO = ["bandera", "remera", "redes", "radio", "camara"] as const;
+export type IconoBeneficio = (typeof ICONOS_BENEFICIO)[number];
+
+export interface BeneficioSponsor {
+  icono: IconoBeneficio;
+  texto: string;
+}
+
+/** Propuesta de sponsoreo que se muestra en /sponsors/[token] antes del
+ * formulario. Se carga por evento desde el panel; si está vacía, la sección
+ * no se muestra. Todos los campos son opcionales por separado. */
+export interface PropuestaSponsors {
+  descripcion?: string;
+  aporte?: string;
+  premio?: string;
+  beneficios?: BeneficioSponsor[];
+  cierre?: string;
+}
+
 export interface Evento {
   id: string;
   slug: string;
@@ -35,6 +57,7 @@ export interface Evento {
   observacion?: string;
   precio?: string;
   comoLlegar?: OpcionTraslado[];
+  propuestaSponsors?: PropuestaSponsors;
 }
 
 export interface FilaEvento {
@@ -52,6 +75,7 @@ export interface FilaEvento {
   observacion: string | null;
   precio: string | null;
   como_llegar: OpcionTraslado[] | null;
+  propuesta_sponsors: PropuestaSponsors | null;
 }
 
 function clienteEventos() {
@@ -82,11 +106,12 @@ export function filaAEvento(fila: FilaEvento): Evento {
     observacion: fila.observacion ?? undefined,
     precio: fila.precio ?? undefined,
     comoLlegar: fila.como_llegar ?? undefined,
+    propuestaSponsors: fila.propuesta_sponsors ?? undefined,
   };
 }
 
 export const COLUMNAS_EVENTO =
-  "id, slug, titulo, flyer_src, flyer_ancho, flyer_alto, flyer_alt, fecha, fecha_orden, horario, direccion, observacion, precio, como_llegar";
+  "id, slug, titulo, flyer_src, flyer_ancho, flyer_alto, flyer_alt, fecha, fecha_orden, horario, direccion, observacion, precio, como_llegar, propuesta_sponsors";
 
 export async function obtenerEventoPorSlug(slug: string): Promise<Evento | undefined> {
   const { data, error } = await clienteEventos()

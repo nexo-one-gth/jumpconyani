@@ -3,7 +3,15 @@
 import { useMemo, useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { crearClienteSupabase } from "@/lib/supabase/client";
-import type { Evento, OpcionTraslado } from "@/lib/eventos";
+import {
+  ICONOS_BENEFICIO,
+  type BeneficioSponsor,
+  type Evento,
+  type IconoBeneficio,
+  type OpcionTraslado,
+  type PropuestaSponsors,
+} from "@/lib/eventos";
+import IconoDeBeneficio, { ETIQUETAS_ICONO_BENEFICIO } from "@/components/eventos/IconosBeneficio";
 
 interface Props {
   /** Si viene, el formulario edita este evento. Si no viene, crea uno nuevo. */
@@ -47,6 +55,16 @@ export default function FormularioEvento({ evento }: Props) {
   const [observacion, setObservacion] = useState(evento?.observacion ?? "");
   const [precio, setPrecio] = useState(evento?.precio ?? "");
   const [comoLlegar, setComoLlegar] = useState<OpcionTraslado[]>(evento?.comoLlegar ?? []);
+  // Propuesta para sponsors: lo que ve el sponsor en /sponsors/[token] antes
+  // de cargar su colaboración. Cada campo por separado; se guarda como un
+  // solo JSON (o null si quedó todo vacío).
+  const [propDescripcion, setPropDescripcion] = useState(evento?.propuestaSponsors?.descripcion ?? "");
+  const [propAporte, setPropAporte] = useState(evento?.propuestaSponsors?.aporte ?? "");
+  const [propPremio, setPropPremio] = useState(evento?.propuestaSponsors?.premio ?? "");
+  const [propBeneficios, setPropBeneficios] = useState<BeneficioSponsor[]>(
+    evento?.propuestaSponsors?.beneficios ?? [],
+  );
+  const [propCierre, setPropCierre] = useState(evento?.propuestaSponsors?.cierre ?? "");
 
   const [archivoFlyer, setArchivoFlyer] = useState<File | null>(null);
   const [previaFlyer, setPreviaFlyer] = useState<string | null>(
@@ -102,6 +120,36 @@ export default function FormularioEvento({ evento }: Props) {
 
   function quitarOpcionTraslado(indice: number) {
     setComoLlegar((actual) => actual.filter((_, i) => i !== indice));
+  }
+
+  function agregarBeneficio() {
+    setPropBeneficios((actual) => [...actual, { icono: "bandera", texto: "" }]);
+  }
+
+  function actualizarBeneficio(indice: number, cambios: Partial<BeneficioSponsor>) {
+    setPropBeneficios((actual) =>
+      actual.map((beneficio, i) => (i === indice ? { ...beneficio, ...cambios } : beneficio)),
+    );
+  }
+
+  function quitarBeneficio(indice: number) {
+    setPropBeneficios((actual) => actual.filter((_, i) => i !== indice));
+  }
+
+  /** Arma el JSON de la propuesta con los campos que tengan contenido, o
+   * null si Yani no cargó nada (así el formulario del sponsor no muestra
+   * una sección vacía). */
+  function armarPropuesta(): PropuestaSponsors | null {
+    const beneficiosLimpios = propBeneficios
+      .map((beneficio) => ({ icono: beneficio.icono, texto: beneficio.texto.trim() }))
+      .filter((beneficio) => beneficio.texto);
+    const propuesta: PropuestaSponsors = {};
+    if (propDescripcion.trim()) propuesta.descripcion = propDescripcion.trim();
+    if (propAporte.trim()) propuesta.aporte = propAporte.trim();
+    if (propPremio.trim()) propuesta.premio = propPremio.trim();
+    if (beneficiosLimpios.length > 0) propuesta.beneficios = beneficiosLimpios;
+    if (propCierre.trim()) propuesta.cierre = propCierre.trim();
+    return Object.keys(propuesta).length > 0 ? propuesta : null;
   }
 
   async function guardar(evento_: FormEvent) {
@@ -168,6 +216,7 @@ export default function FormularioEvento({ evento }: Props) {
         observacion: observacion.trim() || null,
         precio: precio.trim() || null,
         como_llegar: comoLlegarLimpio.length > 0 ? comoLlegarLimpio : null,
+        propuesta_sponsors: armarPropuesta(),
         actualizado_en: new Date().toISOString(),
       };
 
@@ -369,6 +418,113 @@ export default function FormularioEvento({ evento }: Props) {
           + Agregar opción de traslado
         </button>
       </div>
+
+      <details className="group">
+        <summary className="flex cursor-pointer list-none items-center justify-between font-titulo text-lg uppercase text-marca-negro [&::-webkit-details-marker]:hidden">
+          Propuesta para sponsors (opcional)
+          <span aria-hidden className="text-base text-zinc-400 transition-transform duration-200 group-open:rotate-180">
+            ▾
+          </span>
+        </summary>
+        <p className="mt-1 text-sm text-zinc-500">
+          Es lo que ve cada sponsor al abrir su link, antes de cargar su colaboración. Si lo dejás vacío, no se
+          muestra.
+        </p>
+
+        <label className="mt-3 flex flex-col gap-1">
+          <span className="text-sm font-medium text-zinc-700">Sobre el evento</span>
+          <textarea
+            rows={3}
+            placeholder="Ej: Primera Master Class del Team Superpoderosas: una jornada de Jumping con instructorxs y alumnas de distintas provincias."
+            value={propDescripcion}
+            onChange={(e) => setPropDescripcion(e.target.value)}
+            className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-base"
+          />
+        </label>
+
+        <label className="mt-3 flex flex-col gap-1">
+          <span className="text-sm font-medium text-zinc-700">Valor del aporte</span>
+          <input
+            type="text"
+            placeholder="Ej: $30.000"
+            value={propAporte}
+            onChange={(e) => setPropAporte(e.target.value)}
+            className="h-11 w-full rounded-lg border border-zinc-300 px-3 text-base"
+          />
+        </label>
+
+        <label className="mt-3 flex flex-col gap-1">
+          <span className="text-sm font-medium text-zinc-700">Premio o colaboración extra</span>
+          <input
+            type="text"
+            placeholder="Ej: 1 premio para sorteo (producto o servicio de tu emprendimiento)"
+            value={propPremio}
+            onChange={(e) => setPropPremio(e.target.value)}
+            className="h-11 w-full rounded-lg border border-zinc-300 px-3 text-base"
+          />
+        </label>
+
+        <div className="mt-4">
+          <h3 className="text-sm font-medium text-zinc-700">Lo que recibe el sponsor</h3>
+          <p className="text-xs text-zinc-500">Un beneficio por tarjeta, con su ícono. Se muestran en dos columnas.</p>
+
+          <div className="mt-2 flex flex-col gap-2">
+            {propBeneficios.map((beneficio, indice) => (
+              <div key={indice} className="flex items-center gap-2 rounded-xl border border-zinc-200 p-2">
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-zinc-100 text-marca-negro">
+                  <IconoDeBeneficio nombre={beneficio.icono} className="h-5 w-5" />
+                </span>
+                <select
+                  value={beneficio.icono}
+                  onChange={(e) => actualizarBeneficio(indice, { icono: e.target.value as IconoBeneficio })}
+                  aria-label="Ícono del beneficio"
+                  className="h-11 w-28 shrink-0 rounded-lg border border-zinc-300 bg-white px-2 text-sm"
+                >
+                  {ICONOS_BENEFICIO.map((icono) => (
+                    <option key={icono} value={icono}>
+                      {ETIQUETAS_ICONO_BENEFICIO[icono]}
+                    </option>
+                  ))}
+                </select>
+                <input
+                  type="text"
+                  placeholder="Ej: Logo en las banderas del evento"
+                  value={beneficio.texto}
+                  onChange={(e) => actualizarBeneficio(indice, { texto: e.target.value })}
+                  className="h-11 min-w-0 flex-1 rounded-lg border border-zinc-300 px-3 text-sm"
+                />
+                <button
+                  type="button"
+                  onClick={() => quitarBeneficio(indice)}
+                  aria-label="Quitar beneficio"
+                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-zinc-500"
+                >
+                  ✕
+                </button>
+              </div>
+            ))}
+          </div>
+
+          <button
+            type="button"
+            onClick={agregarBeneficio}
+            className="mt-3 flex h-10 items-center justify-center rounded-full border border-dashed border-zinc-300 px-4 text-sm font-medium text-zinc-600"
+          >
+            + Agregar beneficio
+          </button>
+        </div>
+
+        <label className="mt-4 flex flex-col gap-1">
+          <span className="text-sm font-medium text-zinc-700">Frase de cierre</span>
+          <input
+            type="text"
+            placeholder="Ej: Gracias por ser parte de este sueño 💜"
+            value={propCierre}
+            onChange={(e) => setPropCierre(e.target.value)}
+            className="h-11 w-full rounded-lg border border-zinc-300 px-3 text-base"
+          />
+        </label>
+      </details>
 
       <button
         type="submit"

@@ -1,9 +1,13 @@
 "use client";
 
 import { use, useEffect, useMemo, useState, type FormEvent } from "react";
+import Image from "next/image";
 import { crearClienteSupabase } from "@/lib/supabase/client";
 import { NOMBRE_MARCA } from "@/lib/contacto";
+import type { PropuestaSponsors } from "@/lib/eventos";
 import CintaSponsors from "@/components/eventos/CintaSponsors";
+import IconoDeBeneficio from "@/components/eventos/IconosBeneficio";
+import RayasDiagonales from "@/components/RayasDiagonales";
 
 interface Props {
   params: Promise<{ token: string }>;
@@ -17,6 +21,7 @@ interface DatosFormulario {
   evento_fecha?: string;
   evento_horario?: string | null;
   evento_fecha_orden?: string;
+  propuesta_sponsors?: PropuestaSponsors | null;
   cerrado?: boolean;
   aporte?: string | null;
   detalle?: string | null;
@@ -169,10 +174,25 @@ export default function FormularioSponsor({ params }: Props) {
     );
   }
 
+  const propuesta = datos.propuesta_sponsors ?? null;
+
   return (
     <main className="min-h-full px-4 py-8">
       <h1 className="font-titulo text-2xl uppercase text-marca-negro">{NOMBRE_MARCA}</h1>
-      <p className="mt-1 text-lg text-zinc-600">Hola {datos.sponsor_nombre} 👋</p>
+      <div className="mt-2 flex items-center gap-3">
+        {datos.sponsor_logo && (
+          <span className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-zinc-200 bg-white p-1">
+            <Image
+              src={datos.sponsor_logo}
+              alt={`Logo de ${datos.sponsor_nombre ?? "sponsor"}`}
+              width={56}
+              height={56}
+              className="h-full w-full object-contain"
+            />
+          </span>
+        )}
+        <p className="text-lg text-zinc-600">Hola {datos.sponsor_nombre} 👋</p>
+      </div>
 
       <div className="mt-4 rounded-2xl bg-zinc-50 p-4">
         <p className="font-titulo text-lg uppercase leading-tight text-marca-negro">{datos.evento_titulo}</p>
@@ -181,6 +201,50 @@ export default function FormularioSponsor({ params }: Props) {
           {datos.evento_horario ? ` · ${datos.evento_horario}` : ""}
         </p>
       </div>
+
+      {propuesta && (
+        <section className="mt-5 overflow-hidden rounded-2xl border border-zinc-200">
+          <RayasDiagonales />
+          {(propuesta.aporte || propuesta.premio) && (
+            <div className="bg-marca-rosa px-4 py-4">
+              <p className="text-xs font-semibold uppercase tracking-wide text-marca-negro/70">Tu aporte como sponsor</p>
+              {propuesta.aporte && (
+                <p className="mt-1 font-titulo text-3xl uppercase leading-none text-marca-negro">{propuesta.aporte}</p>
+              )}
+              {propuesta.premio && <p className="mt-2 text-sm text-marca-negro">+ {propuesta.premio}</p>}
+            </div>
+          )}
+
+          <div className="px-4 py-4">
+            {propuesta.descripcion && (
+              <>
+                <h2 className="font-titulo text-lg uppercase text-marca-negro">Sobre el evento</h2>
+                <p className="mt-1 text-sm leading-relaxed text-zinc-600">{propuesta.descripcion}</p>
+              </>
+            )}
+
+            {propuesta.beneficios && propuesta.beneficios.length > 0 && (
+              <>
+                <h2 className={`font-titulo text-lg uppercase text-marca-negro ${propuesta.descripcion ? "mt-5" : ""}`}>
+                  Lo que recibís
+                </h2>
+                <ul className="mt-2 grid grid-cols-2 gap-2">
+                  {propuesta.beneficios.map((beneficio, indice) => (
+                    <li key={indice} className="flex flex-col gap-2 rounded-xl bg-zinc-50 p-3">
+                      <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-white text-marca-rojo shadow-sm">
+                        <IconoDeBeneficio nombre={beneficio.icono} className="h-5 w-5" />
+                      </span>
+                      <span className="text-sm leading-snug text-marca-negro">{beneficio.texto}</span>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
+
+            {propuesta.cierre && <p className="mt-4 text-sm font-medium text-marca-negro">{propuesta.cierre}</p>}
+          </div>
+        </section>
+      )}
 
       {datos.cerrado ? (
         <div className="mt-6">
@@ -287,7 +351,12 @@ export default function FormularioSponsor({ params }: Props) {
 
       {datos.alias_pago && (
         <div className="mt-6 rounded-2xl bg-zinc-50 p-4">
-          <h3 className="font-titulo text-base uppercase text-marca-negro">Alias de pago</h3>
+          <h3 className="font-titulo text-base uppercase text-marca-negro">Dónde transferir el aporte</h3>
+          {propuesta?.aporte && (
+            <p className="mt-1 text-sm text-zinc-600">
+              Aporte: <span className="font-semibold text-marca-negro">{propuesta.aporte}</span>
+            </p>
+          )}
           <div className="mt-2 flex items-center gap-2">
             <p className="flex-1 truncate text-sm font-medium text-marca-negro">{datos.alias_pago}</p>
             <button
