@@ -9,7 +9,7 @@
 //
 // Logos actualizados el 22/8 con los archivos que mandó el cliente por
 // separado (antes eran recortes de una sola lámina/foto). Se sumó Resortes
-// (Ingeniero Allan) como sponsor nuevo.
+// (Ingeniero Allan) como sponsor nuevo. Joyas Stylo sumado el 3/9.
 
 export interface Sponsor {
   nombre: string;
@@ -34,4 +34,5 @@ export const SPONSORS: Sponsor[] = [
   { nombre: "Across Sport Nutrition", logo: "/sponsors/across.webp" },
   { nombre: "M&A (Dios en los detalles)", logo: "/sponsors/m-a.webp" },
   { nombre: "Resortes Ingeniero Allan", logo: "/sponsors/resortes.webp" },
+  { nombre: "Joyas Stylo", logo: "/sponsors/joyas-stylo.webp" },
 ];
